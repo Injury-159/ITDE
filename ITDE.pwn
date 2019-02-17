@@ -1,10 +1,9 @@
 #include <a_samp>
 #include <strlib>		
 #include <izcmd>		
-#include <foreach>
+// #include <foreach>
 #include <easyDialog>
-#include <dini2>
-//#include <YSI_Coding\y_iterate>			
+#include <YSI_Data\y_iterate>			
 
 
 #if !defined isnull 
@@ -281,7 +280,6 @@ static EditorExit()
 
 	Iter_Clear(Textdraws);
 	TogglePlayerControllable(ITDE_Player, true);
-	ShowPlayerDialog(ITDE_Player, -1, 0, "", "", "", "");
 
 	if(ITDE_Timer != -1)
 	{
@@ -300,6 +298,22 @@ static EditorExit()
 		ITDE_List[i] = -1;
 
 	return 1;
+}
+
+
+static AddToProjectList(const project[])
+{	
+	new File:F = fopen("ITDE/ITDE_Projects.list", io_append);
+
+	if(F)
+	{
+		new tmp[33];
+		strcat(tmp, project);
+		strcat(tmp, "\r\n");
+
+		fwrite(F, tmp);
+		fclose(F);
+	}
 }
 
 
@@ -359,7 +373,9 @@ static SaveProject()
 {
 	if(ITDE_ValidProject)
 	{	
-		new name[34], File:File;
+		new name[39], File:File;
+
+		strcat(name, "ITDE/");
 		strcat(name, ITDE_Project);
 		strcat(name, ".itde");
 
@@ -371,12 +387,10 @@ static SaveProject()
 
 			foreach(new i : Textdraws)
 			{
-				format(string, sizeof string, "Text: %s\r\n", Textdraw[i][Text]);
-				fwrite(File, string);
-
-				format(string, sizeof string, "S%d|%.1f|%.1f|%.1f|%.1f|%.1f|%.1f|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%.1f|%.1f|%.1f|%.1fE\r\n\r\n",
+				format(string, sizeof string, "%d|%s|%.1f|%.1f|%.1f|%.1f|%.1f|%.1f|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%.1f|%.1f|%.1f|%.1f\r\n",
 
 				Textdraw[i][Type],
+				Textdraw[i][Text],
 				Textdraw[i][PosX],
 				Textdraw[i][PosY],
 				Textdraw[i][TextSizeX],
@@ -420,16 +434,13 @@ static LoadProject()
 	if(File)
 	{
 		static string[1225];
-		static tmp[278];
-		string[0] = tmp[0] = EOS;
+		string[0] = EOS;
 
-		new 
-			Output[22][5],
-			start,
-			end,
+		static out[23][1024]; // So bad, i know  :/
+		memset(out[0][0], EOS, sizeof out * sizeof out[]);
 
+		new	
 			Type,
-			Text[1024],
 			Float:X,
 			Float:Y,
 			Float:LX,
@@ -454,108 +465,102 @@ static LoadProject()
 
 		while(fread(File, string))
 		{
-			if(strfind(string, "Text:", true) != -1)
-			{
-				if((end = strfind(string, "\r", true) != -1)
-				{
-					strmid(Text, string, 4, end);
+			strexplode(out, string, "|", _, _, true);
+
+			Type = strval(out[0]);
+			X = floatstr(out[2]);
+			Y = floatstr(out[3]);
+			TX = floatstr(out[4]);
+			TY = floatstr(out[5]);
+			LX = floatstr(out[6]);
+			LY = floatstr(out[7]);
+			Font = strval(out[8]);
+			Color = strval(out[9]);
+			BoxColor = strval(out[10]);
+			BackColor = strval(out[11]);
+			UseBox = strval(out[12]);
+			Outline = strval(out[13]);
+			Shadow = strval(out[14]);
+			Align = strval(out[15]);
+			Propor = strval(out[16]);
+			Select = strval(out[17]);
+			Prev = strval(out[18]);
+			PrevRX = floatstr(out[19]);
+			PrevRY = floatstr(out[20]);
+			PrevRZ = floatstr(out[21]);
+			PrevZoom = floatstr(out[22]);
+
+			new idx;
+			if((idx = Iter_Free(Texdraws)) > -1)
+			{						
+				new Text:textid = TextDrawCreate(X, Y, out[1]);
+
+				if(textid == Text:INVALID_TEXT_DRAW)
+				{	
+					printf("\7[ITDE]: Creation | SA-MP Textdraws reached your limit of %d.", MAX_TEXT_DRAWS);
+					return -1;
 				}
-			}
+
+				TextDrawTextSize(textid, TX, TY);
+				TextDrawLetterSize(textid, LX, LY);
+				TextDrawFont(textid, Font);
+				TextDrawColor(textid, Color);
+				TextDrawBoxColor(textid, BoxColor);
+				TextDrawBackgroundColor(textid, BackColor);
+				TextDrawUseBox(textid, UseBox);
+				TextDrawSetOutline(textid, Outline);
+				TextDrawSetShadow(textid, Shadow);
+				TextDrawAlignment(textid, Align);
+				TextDrawSetProportional(textid, Propor);
+				TextDrawSetSelectable(textid, Select);
+				TextDrawSetPreviewModel(textid, Prev);
+				TextDrawSetPreviewRot(textid, PrevRX, PrevRY, PrevRZ, PrevZoom);		
 
 
-			if((start = strfind(string, "S", true)) != -1)
-			{
-				if((end = strfind(string, "E", true)) != -1)
-				{
-					strmid(tmp, string, start + 1, end - 1);
-					strexplode(tmp, output, "|");
+				Textdraw[id][Text][0] = EOS;
+				strcat(Textdraw[id][Text], out[1], sizeof out[]);
 
-					Type = strval(output[0]);
-					PX = floatstr(output[1]);
-					PY = floatstr(output[2]);
-					TX = floatstr(output[3]);
-					TY = floatstr(output[4]);
-					LX = floatstr(output[5]);
-					LY = floatstr(output[6]);
-					Font = strval(output[7]);
-					Color = strval(output[8]);
-					BoxColor = strval(output[9]);
-					BackColor = strval(output[10]);
-					UseBox = strval(output[11]);
-					Outline = strval(output[12]);
-					Shadow = strval(output[13]);
-					Align = strval(output[14]);
-					Propor = strval(output[15]);
-					Select = strval(output[16]);
-					Prev = strval(output[17]);
-					PrevRX = floatstr(output[18]);
-					PrevRY = floatstr(output[19]);
-					PrevRZ = floatstr(output[20]);
-					PrevZoom = floatstr(output[21]);
+				Textdraw[id][Type] = Type;
+				Textdraw[id][Textid] = textid;
+				Textdraw[id][PosX] = X;
+				Textdraw[id][PosY] = Y;
+				Textdraw[id][TextSizeX] = TX;
+				Textdraw[id][TextSizeY] = TY;
+				Textdraw[id][LetterSizeX] = LX;
+				Textdraw[id][LetterSizeY] = LY;
+				Textdraw[id][Font] = Font;
+				Textdraw[id][Color] = Color;
+				Textdraw[id][BoxColor] = BoxColor;
+				Textdraw[id][BackColor] = BackColor;
+				Textdraw[id][UseBox] = UseBox;
+				Textdraw[id][Outline] = Outline;
+				Textdraw[id][Shadow] = Shadow;
+				Textdraw[id][Alignment] = Align;
+				Textdraw[id][Proportional] = Propor;
+				Textdraw[id][Selectable] = Select;
+				Textdraw[id][PreviewModel] = Prev;
+				Textdraw[id][PreviewRotX] = PrevRX;
+				Textdraw[id][PreviewRotY] = PrevRY;
+				Textdraw[id][PreviewRotZ] = PrevRZ;
+				Textdraw[id][PreviewZoom] = PrevZoom;
 
-					new idx;
+				Iter_Add(Textdraws, id);
 
-					if((idx = Iter_Free(Texdraws)) > -1)
-					{						
-						new Text:textid = TextDrawCreate(PX, PY, Text);
-
-						if(textid == Text:INVALID_TEXT_DRAW)
-						{	
-							printf("\7[ITDE]: Creation | SA-MP Textdraws reached your limit of %d.", MAX_TEXT_DRAWS);
-							return -1;
-						}
-
-						TextDrawTextSize(textid, TX, TY);
-						TextDrawLetterSize(textid, LX, LY);
-						TextDrawFont(textid, Font);
-						TextDrawColor(textid, Color);
-						TextDrawBoxColor(textid, BoxColor);
-						TextDrawBackgroundColor(textid, BackColor);
-						TextDrawUseBox(textid, UseBox);
-						TextDrawSetOutline(textid, Outline);
-						TextDrawSetShadow(textid, Shadow);
-						TextDrawAlignment(textid, Align);
-						TextDrawSetProportional(textid, Propor);
-						TextDrawSetSelectable(textid, Select);
-						TextDrawSetPreviewModel(textid, Prev);
-						TextDrawSetPreviewRot(textid, PrevRX, PrevRY, PrevRZ, PrevZoom);		
-
-
-						Textdraw[id][Text][0] = EOS;
-						strcat(Textdraw[id][Text], Text, 1024);
-
-						Textdraw[id][Type] = Type;
-						Textdraw[id][Textid] = textid;
-						Textdraw[id][PosX] = PX;
-						Textdraw[id][PosY] = PY;
-						Textdraw[id][TextSizeX] = TX;
-						Textdraw[id][TextSizeY] = TY;
-						Textdraw[id][LetterSizeX] = LX;
-						Textdraw[id][LetterSizeY] = LY;
-						Textdraw[id][Font] = Font;
-						Textdraw[id][Color] = Color;
-						Textdraw[id][BoxColor] = BoxColor;
-						Textdraw[id][BackColor] = BackColor;
-						Textdraw[id][UseBox] = UseBox;
-						Textdraw[id][Outline] = Outline;
-						Textdraw[id][Shadow] = Shadow;
-						Textdraw[id][Alignment] = Align;
-						Textdraw[id][Proportional] = Propor;
-						Textdraw[id][Selectable] = Select;
-						Textdraw[id][PreviewModel] = Prev;
-						Textdraw[id][PreviewRotX] = PrevRX;
-						Textdraw[id][PreviewRotY] = PrevRY;
-						Textdraw[id][PreviewRotZ] = PrevRZ;
-						Textdraw[id][PreviewZoom] = PrevZoom;
-
-						Iter_Add(Textdraws, id);
-
-						TextDrawShowForPlayer(ITDE_Player, textid);						
-					}
-				}
+				TextDrawShowForPlayer(ITDE_Player, textid);						
 			}
 		}	
-		fclose(File);		
+		fclose(File);
+	}
+	
+	if(Iter_Count(Textdraws))
+	{
+		Dialog_CreateAndTextdrawList(playerid);
+	}
+	else 
+	{
+		ITDE_Editing = -1;
+		Dialog_CreateTextdraw(playerid);
+	}				
 }
 
 
@@ -563,16 +568,17 @@ static ExportProject()
 {
 	if(ITDE_ValidProject)
 	{
-		new filename[33];
+		new filename[46];
 		new File:File;
 
+		strcat(filename, "ITDE/Exports/");
 		strcat(filename, ITDE_Project);
 		strcat(filename, ".txt");
 
 		File = fopen(filename, io_write);
 		if(File)
 		{
-			static string[4000];
+			static string[1000];
 			string[0] = EOS;
 			
 			new List_Player[TEXT_DRAWS];
@@ -718,11 +724,36 @@ static ExportProject()
 					fwrite(File, string);						
 				}																																																							
 			}				
-
 			fclose(File);								
 		}
 	}
 }	
+
+
+static Dialog_ProjectList(playerid)
+{
+	new File:F = fopen("ITDE/ITDE_Projects.list", io_read);
+
+	if(!F)
+	{
+		SendClientMessage(playerid, -1, "[ITDE]: File \"ITDE/ITDE_Projects.list\" not found.");
+		return Dialog_Main(playerid);
+	}
+
+	new 
+		list[256] = "Projects\n",
+		string[29];
+
+		
+	while(fread(F, string))
+	{
+		strcat(list, string);
+		strcat(list, "\n");
+	}
+
+	fclose(F);	
+	return Dialog_Show(playerid, PROJECT_LIST, DIALOG_STYLE_TABLIST_HEADERS, "Load Project", list, "Select", "Back");
+}
 
 
 // ------------------------------------------------------------------------------
@@ -734,6 +765,7 @@ DIALOG:CREATE_AND_TEXTDRAW_LIST(playerid, response, listitem, inputtext[])
 {
 	if(!response)
 		return Dialog_Show(playerid, CONTINUE_PROJECT, DIALOG_STYLE_LIST, "Injury's Text Draw Editor", "Continue Current Project\nExport & Close Current Project\nClose Current Project", "Select", "Cancel");
+
 
 	switch(listitem)
 	{
@@ -786,9 +818,13 @@ DIALOG:DIALOG_MAIN(playerid, response, listitem, inputtext[])
 	{	
 		switch(listitem)
 		{
-			case 0:	Dialog_Show(playerid, SET_PROJECT_NAME, DIALOG_STYLE_INPUT, "Create New project", "Write your project name below", "Set", "Back");
+			case 0:	
+			{
+				Dialog_Show(playerid, SET_PROJECT_NAME, DIALOG_STYLE_INPUT, "Create New project", "Write your project name below", "Set", "Back");
+			}	
 			case 1:
 			{
+				Dialog_ProjectList(playerid);
 			}
 
 		}
@@ -797,6 +833,20 @@ DIALOG:DIALOG_MAIN(playerid, response, listitem, inputtext[])
 	{
 		EditorExit();
 	}
+
+	return 1;
+}
+
+
+DIALOG:PROJECT_LIST(playerid, response, listitem, inputtext[])
+{
+	if(!response)
+		return Dialog_Main(playerid);
+
+
+	new tmp[28];
+	if(strfind(inputtext, inputtext, bool:ignorecase=false, pos=0))
+
 
 	return 1;
 }
@@ -864,7 +914,7 @@ DIALOG:SET_PROJECT_NAME(playerid, response, listitem, inputtext[])
 	strcat(string, inputtext);
 	strcat(string, ".txt");
 
-	if(dini_Exists(string))
+	if(fexist(string))
 	{
 		SendClientMessage(playerid, -1, "[ITDE]: Another project with same name already exists.");
 		return Dialog_Show(playerid, SET_PROJECT_NAME, DIALOG_STYLE_INPUT, "Create New project", "Write your project name below", "Set", "Back");
@@ -879,10 +929,10 @@ DIALOG:SET_PROJECT_NAME(playerid, response, listitem, inputtext[])
 	ITDE_Project[0] = EOS;
 	strcat(ITDE_Project, inputtext, sizeof ITDE_Project);
 
-	dini_Create(string);
 	format(string, sizeof string, "[ITDE]: New project created with name \"%s\"", ITDE_Project);
 	SendClientMessage(playerid, -1, string);
 
+	AddToProjectList(ITDE_Project);
 	ITDE_ValidProject = true;
 
 	Dialog_CreateTextdraw(playerid);
@@ -1084,8 +1134,10 @@ DIALOG:CONTINUE_PROJECT(playerid, response, listitem, inputtext[])
 				{
 					SaveProject();
 					ExportProject();
-					ITDE_Project[0] = EOS;
-					ITDE_ValidProject = false;					
+
+					EditorExit();
+
+					cmd_itde(playerid, "\0");
 				}
 			}
 
@@ -1372,6 +1424,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 #if defined ITDE_OnPlayerKeyStateChange
 	forward ITDE_OnPlayerKeyStateChange(playerid, newkeys, oldkeys);
 #endif
+
 
 
 public OnFilterScriptExit()
